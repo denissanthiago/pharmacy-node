@@ -1,0 +1,61 @@
+import http from "node:http";
+import { AddressInfo } from "node:net";
+
+import express, { Express } from "express";
+
+import { config } from "@core/config/config";
+import { healthRouter } from "@core/health/api/health-router";
+
+import { ConsoleLogger } from "@shared/logger/console-logger";
+import { Logger } from "@shared/logger/logger";
+
+import { userRouter } from "@contexts/users/api/user-router";
+
+export class App {
+  private readonly app: Express;
+  private httpServer?: http.Server;
+  private readonly logger: Logger;
+
+  constructor() {
+    this.logger = new ConsoleLogger();
+    this.app = express();
+  }
+
+  middleware() {
+    this.app.use(express.json());
+  }
+
+  routes() {
+    this.app.use("/health", healthRouter);
+    this.app.use("/users", userRouter);
+  }
+
+  async startApp(): Promise<void> {
+    return new Promise(resolve => {
+      this.httpServer = this.app.listen(config.server.port, () => {
+        const { port } = this.httpServer?.address() as AddressInfo;
+        this.logger.info(`App is ready and listening on port ${port} 🚀`);
+        resolve();
+      });
+    });
+  }
+
+  async stopApp(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if (this.httpServer) {
+        this.httpServer.close(error => {
+          if (error) {
+            return reject(error);
+          }
+          return resolve();
+        });
+      }
+
+      return resolve();
+    });
+  }
+
+  getHttpServerApp(): http.Server | undefined {
+    return this.httpServer;
+  }
+}

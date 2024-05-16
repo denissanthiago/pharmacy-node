@@ -1,55 +1,26 @@
 import http from "node:http";
-import { AddressInfo } from "node:net";
 
-import express, { Express } from "express";
-
-import { config } from "@core/config/config";
-import { healthRouter } from "@core/health/api/health-router";
-
-import { ConsoleLogger } from "@shared/logger/console-logger";
-import { Logger } from "@shared/logger/logger";
-
-import { userRouter } from "@contexts/users/api/user-router";
+import { App } from "@src/app";
 
 export class Server {
-  private readonly app: Express;
-  private httpServer?: http.Server;
-  private readonly logger: Logger;
+  private readonly app: App;
 
   constructor() {
-    this.logger = new ConsoleLogger();
-    this.app = express();
-    this.app.use(express.json());
-    this.app.use("/health", healthRouter);
-    this.app.use("/users", userRouter);
+    this.app = new App();
+
+    this.app.middleware();
+    this.app.routes();
   }
 
   async start(): Promise<void> {
-    return new Promise(resolve => {
-      this.httpServer = this.app.listen(config.server.port, () => {
-        const { port } = this.httpServer?.address() as AddressInfo;
-        this.logger.info(`App is ready and listening on port ${port} 🚀`);
-        resolve();
-      });
-    });
+    return this.app.startApp();
   }
 
   async stop(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      if (this.httpServer) {
-        this.httpServer.close(error => {
-          if (error) {
-            return reject(error);
-          }
-          return resolve();
-        });
-      }
-
-      return resolve();
-    });
+    return this.app.stopApp();
   }
 
   getHttpServer(): http.Server | undefined {
-    return this.httpServer;
+    return this.app.getHttpServerApp();
   }
 }
